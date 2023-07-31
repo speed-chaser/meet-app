@@ -109,3 +109,6 @@ so that I know what events are organized in which city
 - **When** the user clicks the button to see a chart of events in each of their corrosponding cities;
 - **Then** a chart with the number of upcoming events for each city will be shown to the user.
 
+## Use of serverless function in the meet app
+- The meet app can use serverless functions for event notifications, real-time data processing, user authentication, event recommendations, and scalability. By leveraging serverless technology, the app can efficiently handle backend processes, provide personalized experiences, and scale according to user demand.
+
