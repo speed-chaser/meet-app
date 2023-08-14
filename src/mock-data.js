@@ -1,3 +1,5 @@
+// src/mock-data.js
+
 const mockData = [
   {
     kind: "calendar#event",
@@ -1435,4 +1437,5 @@ const mockData = [
     eventType: "default",
   },
 ];
+
 export default mockData;

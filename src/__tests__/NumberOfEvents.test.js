@@ -1,16 +1,16 @@
 import userEvent from "@testing-library/user-event";
 import NumberOfEvents from "../components/NumberOfEvents";
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 
 describe("<NumberOfEvents /> Component", () => {
   let NumberOfEventsComponent;
   beforeEach(() => {
     NumberOfEventsComponent = render(
-      <NumberOfEvents setCurrentNOE={() => {}} setErrorAlert={() => {}} />
+      <NumberOfEvents setCurrentNOE={() => {}} />
     );
   });
 
-  test("has input textbox", () => {
+  test("has the input textbox", () => {
     const input = NumberOfEventsComponent.queryByRole("textbox");
     expect(input).toBeInTheDocument();
   });
