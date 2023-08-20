@@ -1,6 +1,7 @@
 // src/api.js
 
-import mockData from "./mock-data";
+import { mockData } from "./mock-data";
+import axios from "axios";
 import NProgress from "nprogress";
 
 /**
@@ -11,46 +12,34 @@ import NProgress from "nprogress";
  * It will also remove all duplicates by creating another new array using the spread operator and spreading a Set.
  * The Set will remove all duplicates from the array.
  */
-export const extractLocations = (events) => {
-  const extractedLocations = events.map((event) => event.location);
-  const locations = [...new Set(extractedLocations)];
-  return locations;
-};
 
-const checkToken = async (accessToken) => {
-  const response = await fetch(
-    `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`
-  );
-  const result = await response.json();
-  return result;
-};
-
-const removeQuery = () => {
-  let newurl;
-  if (window.history.pushState && window.location.pathname) {
-    newurl =
-      window.location.protocol +
-      "//" +
-      window.location.host +
-      window.location.pathname;
-    window.history.pushState("", "", newurl);
-  } else {
-    newurl = window.location.protocol + "//" + window.location.host;
-    window.history.pushState("", "", newurl);
+export const getAccessToken = async () => {
+  const accessToken = localStorage.getItem("access_token");
+  const tokenCheck = accessToken && (await checkToken(accessToken));
+  if (!accessToken || tokenCheck.error) {
+    await localStorage.removeItem("access_token");
+    const searchParams = new URLSearchParams(window.location.search);
+    const code = await searchParams.get("code");
+    if (!code) {
+      const results = await axios.get(
+        "https://tkr4y25sw4.execute-api.us-east-1.amazonaws.com/dev/api/get-auth-url"
+      );
+      const { authUrl } = results.data;
+      return (window.location.href = authUrl);
+    }
+    return code && getToken(code);
   }
+  return accessToken;
 };
 
-const getToken = async (code) => {
-  const encodeCode = encodeURIComponent(code);
-  const response = await fetch(
-    "https://tkr4y25sw4.execute-api.us-east-1.amazonaws.com/dev/api/token" +
-      "/" +
-      encodeCode
-  );
-  const { access_token } = await response.json();
-  access_token && localStorage.setItem("access_token", access_token);
+export const checkToken = async (accessToken) => {
+  const result = await fetch(
+    `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`
+  )
+    .then((res) => res.json())
+    .catch((error) => error.json());
 
-  return access_token;
+  return result;
 };
 
 export const getEvents = async () => {
@@ -60,7 +49,7 @@ export const getEvents = async () => {
     NProgress.done();
     return mockData;
   }
-
+  //Access local storage when user offline
   if (!navigator.onLine) {
     const data = localStorage.getItem("lastEvents");
     NProgress.done();
@@ -82,33 +71,52 @@ export const getEvents = async () => {
       "https://tkr4y25sw4.execute-api.us-east-1.amazonaws.com/dev/api/get-events" +
       "/" +
       token;
-    const response = await fetch(url);
-    const result = await response.json();
-    if (result) {
-      NProgress.done();
-      localStorage.setItem("lastEvents", JSON.stringify(result.events));
-      return result.events;
-    } else return null;
+    const result = await axios.get(url);
+    if (result.data) {
+      var locations = extractLocations(result.data.events);
+      localStorage.setItem("lastEvents", JSON.stringify(result.data));
+      localStorage.setItem("locations", JSON.stringify(locations));
+    }
+    NProgress.done();
+    return result.data.events;
   }
 };
 
-export const getAccessToken = async () => {
-  const accessToken = localStorage.getItem("access_token");
-  const tokenCheck = accessToken && (await checkToken(accessToken));
-
-  if (!accessToken || tokenCheck.error) {
-    await localStorage.removeItem("access_token");
-    const searchParams = new URLSearchParams(window.location.search);
-    const code = await searchParams.get("code");
-    if (!code) {
-      const response = await fetch(
-        "https://tkr4y25sw4.execute-api.us-east-1.amazonaws.com/dev/api/get-auth-url"
-      );
-      const result = await response.json();
-      const { authUrl } = result;
-      return (window.location.href = authUrl);
-    }
-    return code && getToken(code);
+const removeQuery = () => {
+  if (window.history.pushState && window.location.pathname) {
+    var newurl =
+      window.location.protocol +
+      "//" +
+      window.location.host +
+      window.location.pathname;
+    window.history.pushState("", "", newurl);
+  } else {
+    newurl = window.location.protocol + "//" + window.location.host;
+    window.history.pushState("", "", newurl);
   }
-  return accessToken;
+};
+
+const getToken = async (code) => {
+  try {
+    const encodeCode = encodeURIComponent(code);
+    const response = await fetch(
+      "https://tkr4y25sw4.execute-api.us-east-1.amazonaws.com/dev/api/token" +
+        "/" +
+        encodeCode
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const { access_token } = await response.json();
+    access_token && localStorage.setItem("access_token", access_token);
+    return access_token;
+  } catch (error) {
+    error.json();
+  }
+};
+
+export const extractLocations = (events) => {
+  var extractLocations = events.map((event) => event.location);
+  var locations = [...new Set(extractLocations)];
+  return locations;
 };
