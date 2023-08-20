@@ -1,6 +1,7 @@
 // src/api.js
 
 import mockData from "./mock-data";
+import NProgress from "nprogress";
 
 /**
  *
@@ -53,8 +54,18 @@ const getToken = async (code) => {
 };
 
 export const getEvents = async () => {
+  NProgress.start();
+
   if (window.location.href.startsWith("http://localhost")) {
+    NProgress.done();
     return mockData;
+  }
+
+  if (!navigator.onLine) {
+    const data = localStorage.getItem("lastEvents");
+    NProgress.done();
+
+    return data ? JSON.parse(data).events : [];
   }
 
   const token = await getAccessToken();
@@ -68,6 +79,8 @@ export const getEvents = async () => {
     const response = await fetch(url);
     const result = await response.json();
     if (result) {
+      NProgress.done();
+      localStorage.setItem("lastEvents", JSON.stringify(result.events));
       return result.events;
     } else return null;
   }
