@@ -1,7 +1,6 @@
 // src/api.js
 
 import mockData from "./mock-data";
-import axios from "axios";
 import NProgress from "nprogress";
 
 /**
@@ -16,15 +15,17 @@ import NProgress from "nprogress";
 export const getAccessToken = async () => {
   const accessToken = localStorage.getItem("access_token");
   const tokenCheck = accessToken && (await checkToken(accessToken));
+
   if (!accessToken || tokenCheck.error) {
     await localStorage.removeItem("access_token");
     const searchParams = new URLSearchParams(window.location.search);
     const code = await searchParams.get("code");
     if (!code) {
-      const results = await axios.get(
+      const response = await fetch(
         "https://tkr4y25sw4.execute-api.us-east-1.amazonaws.com/dev/api/get-auth-url"
       );
-      const { authUrl } = results.data;
+      const result = await response.json();
+      const { authUrl } = result;
       return (window.location.href = authUrl);
     }
     return code && getToken(code);
@@ -32,59 +33,48 @@ export const getAccessToken = async () => {
   return accessToken;
 };
 
-export const checkToken = async (accessToken) => {
-  const result = await fetch(
+const checkToken = async (accessToken) => {
+  const response = await fetch(
     `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`
-  )
-    .then((res) => res.json())
-    .catch((error) => error.json());
-
+  );
+  const result = await response.json();
   return result;
 };
 
 export const getEvents = async () => {
   NProgress.start();
-
   if (window.location.href.startsWith("http://localhost")) {
-    NProgress.done();
     return mockData;
   }
-  //Access local storage when user offline
-  if (!navigator.onLine) {
-    const data = localStorage.getItem("lastEvents");
-    NProgress.done();
-    console.log("offline data: ", data);
-    return data ? JSON.parse(data).events : [];
-  }
 
   if (!navigator.onLine) {
-    const data = localStorage.getItem("lastEvents");
+    const events = localStorage.getItem("lastEvents");
     NProgress.done();
-    return data ? JSON.parse(data).events : [];
+    return events ? JSON.parse(events) : [];
   }
-
   const token = await getAccessToken();
 
   if (token) {
     removeQuery();
+    // eslint-disable-next-line no-useless-concat
     const url =
       "https://tkr4y25sw4.execute-api.us-east-1.amazonaws.com/dev/api/get-events" +
       "/" +
       token;
-    const result = await axios.get(url);
-    if (result.data) {
-      var locations = extractLocations(result.data.events);
-      localStorage.setItem("lastEvents", JSON.stringify(result.data));
-      localStorage.setItem("locations", JSON.stringify(locations));
-    }
-    NProgress.done();
-    return result.data.events;
+    const response = await fetch(url);
+    const result = await response.json();
+    if (result) {
+      NProgress.done();
+      localStorage.setItem("lastEvents", JSON.stringify(result.events));
+      return result.events;
+    } else return null;
   }
 };
 
 const removeQuery = () => {
+  let newurl;
   if (window.history.pushState && window.location.pathname) {
-    var newurl =
+    newurl =
       window.location.protocol +
       "//" +
       window.location.host +
@@ -116,7 +106,7 @@ const getToken = async (code) => {
 };
 
 export const extractLocations = (events) => {
-  var extractLocations = events.map((event) => event.location);
-  var locations = [...new Set(extractLocations)];
+  const extractedLocations = events.map((event) => event.location);
+  const locations = [...new Set(extractedLocations)];
   return locations;
 };
